@@ -275,13 +275,14 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Update post_init
 async def post_init(application):
+    logger.info("🔧 post_init() triggered")
     await application.bot.set_my_commands([
         BotCommand("start", "Show welcome message"),
         BotCommand("letgo", "Initiate mission"),
         BotCommand("cancelauto", "Cancel next auto mission and reschedule"),
         BotCommand("cancel", "Cancel ongoing operation")
     ])
-    schedule_next_scan(application.job_queue)  # Start scheduling
+    schedule_next_scan(application.job_queue)
 
 async def perform_scan_in(bot, chat_id, context=None):
     driver, (lat, lon) = create_driver()
@@ -488,7 +489,7 @@ application.add_handler(CommandHandler("cancel", cancel))
 application.post_init = post_init
 
 async def handle_health_check(request):
-    return web.Response(text="OK")
+    return web.Response(text="✅ Health check OK")
 
 async def handle_telegram_webhook(request):
     data = await request.json()
@@ -496,11 +497,30 @@ async def handle_telegram_webhook(request):
     await application.process_update(update)
     return web.Response(text="OK")
 
-async def main():
-    await application.initialize()
-    await application.start()  # ✅ Start scheduler, triggers post_init
+async def post_init(application):
+    logger.info("🔧 post_init() triggered")
+    await application.bot.set_my_commands([
+        BotCommand("start", "Show welcome message"),
+        BotCommand("letgo", "Initiate mission"),
+        BotCommand("cancelauto", "Cancel next auto mission and reschedule"),
+        BotCommand("cancel", "Cancel ongoing operation")
+    ])
+    schedule_next_scan(application.job_queue)
 
-    # aiohttp app for healthz + webhook
+async def main():
+    global application
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("letgo", letgo))
+    application.add_handler(CommandHandler("cancelauto", cancelauto))
+    application.add_handler(CommandHandler("cancel", cancel))
+    application.post_init = post_init
+
+    await application.initialize()
+    await application.start()  # Start internal scheduler + post_init
+
+    # Setup aiohttp web server
     app = web.Application()
     app.router.add_get("/healthz", handle_health_check)
     app.router.add_post("/", handle_telegram_webhook)
@@ -511,9 +531,8 @@ async def main():
     await site.start()
 
     await application.bot.set_webhook(os.getenv("WEBHOOK_URL"))
-    print("✅ Webhook set")
+    logger.info("✅ Webhook set successfully")
 
-    # Keeps the app running
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
