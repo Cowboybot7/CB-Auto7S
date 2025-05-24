@@ -496,21 +496,32 @@ async def main():
     application.add_handler(CommandHandler("cancel", cancel))
     application.post_init = post_init
 
-    # Configure web server for health checks
+    # Create web application for health checks
     web_app = web.Application()
     web_app.add_routes([web.get("/healthz", handle_health_check)])
 
-    # Start webhook
-    await application.run_webhook(
+    # ✅ Proper webhook configuration
+    await application.updater.start_webhook(
         listen="0.0.0.0",
         port=int(os.getenv("PORT", 8000)),
         url_path="",
         webhook_url=os.getenv("WEBHOOK_URL"),
-        # ✅ Remove the web_app parameter and use set_webhook() instead
     )
 
-    # Manually set up health check route
+    # Attach health check endpoint
     application.updater.http_server.app.add_subapp("/", web_app)
 
+    # Keep the application running
+    await application.start()
+    await application.updater.start_polling()  # For health checks
+    await application.stop()
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    # ✅ Use the existing event loop instead of creating a new one
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(main())
+    except KeyboardInterrupt:
+        pass
+    finally:
+        loop.close()
