@@ -542,7 +542,7 @@ async def main():
 
     await application.bot.set_webhook(os.getenv("WEBHOOK_URL"))
     logger.info("✅ Webhook set successfully")
-
+    await post_init(application)
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
