@@ -479,7 +479,6 @@ async def letgo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     task = create_task(task_wrapper())
     scan_tasks[chat_id] = task
 
-# Optional health endpoint for uptime pings
 async def handle_health_check(request):
     return web.Response(text="OK")
 
@@ -496,26 +495,22 @@ async def main():
     application.add_handler(CommandHandler("cancel", cancel))
     application.post_init = post_init
 
-    WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # must be HTTPS and not blank
+    WEBHOOK_URL = os.getenv("WEBHOOK_URL")
     PORT = int(os.getenv("PORT", 8000))
 
-    # Set up aiohttp app with /healthz route
+    # aiohttp app with /healthz route
     health_app = web.Application()
     health_app.router.add_get("/healthz", handle_health_check)
 
-    print(f"✅ Running PTB version: {application.bot.__class__.__module__.split('.')[0]} {application.bot.__class__.__module__}")
-
-    # Start Telegram webhook server
-    await application.initialize()
-    await application.start_webhook(
+    # ✅ PTB 21: use run_webhook (not start_webhook)
+    await application.run_webhook(
         listen="0.0.0.0",
         port=PORT,
         webhook_path="",
         webhook_url=WEBHOOK_URL,
-        server=health_app,
+        web_app=health_app,  # aiohttp app
         allowed_updates=Update.ALL_TYPES,
     )
-    await application.updater.wait_closed()
 
 if __name__ == "__main__":
     asyncio.run(main())
