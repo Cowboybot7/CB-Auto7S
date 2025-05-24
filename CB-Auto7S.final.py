@@ -156,16 +156,25 @@ async def auto_scanin_job(context: ContextTypes.DEFAULT_TYPE):
         schedule_next_scan(context.job_queue)
 
 def schedule_next_scan(job_queue):
-    logger.info("📅 schedule_next_scan() called")
-    logger.info(f"👤 CHAT_ID: {CHAT_ID}")
-    """Schedule next mission and reminder for Saturdays only."""
-    # First remove ALL existing jobs to prevent duplicates
+    logger.info("📅 schedule_next_scan() called ✅")
+
+    chat_id = os.getenv('CHAT_ID')
+    logger.info(f"👤 CHAT_ID: {chat_id}")
+
+    if not chat_id:
+        logger.warning("⚠️ CHAT_ID is not set. Skipping scheduling.")
+        return
+
+    logger.info("🔁 Removing existing scheduled jobs (auto_scanin & reminder)...")
     for job in job_queue.get_jobs_by_name("auto_scanin"):
+        logger.info(f"🗑 Removing existing job: {job.name}")
         job.schedule_removal()
     for job in job_queue.get_jobs_by_name("reminder"):
+        logger.info(f"🗑 Removing existing job: {job.name}")
         job.schedule_removal()
 
     now = TIMEZONE.localize(datetime.now())
+    logger.info(f"🕒 Current time: {now}")
 
     def get_next_slot(now):
         # Only schedule for Saturday (weekday=5)
@@ -277,14 +286,20 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Update post_init
 async def post_init(application):
-    logger.info("🔧 post_init() triggered")
-    await application.bot.set_my_commands([
-        BotCommand("start", "Show welcome message"),
-        BotCommand("letgo", "Initiate mission"),
-        BotCommand("cancelauto", "Cancel next auto mission and reschedule"),
-        BotCommand("cancel", "Cancel ongoing operation")
-    ])
-    schedule_next_scan(application.job_queue)
+    try:
+        logger.info("🔧 post_init() triggered ✅")
+
+        await application.bot.set_my_commands([
+            BotCommand("start", "Show welcome message"),
+            BotCommand("letgo", "Initiate mission"),
+            BotCommand("cancelauto", "Cancel next auto mission and reschedule"),
+            BotCommand("cancel", "Cancel ongoing operation")
+        ])
+
+        schedule_next_scan(application.job_queue)
+
+    except Exception as e:
+        logger.error(f"❌ post_init() failed: {e}")
 
 async def perform_scan_in(bot, chat_id, context=None):
     driver, (lat, lon) = create_driver()
