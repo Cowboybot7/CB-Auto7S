@@ -22,6 +22,7 @@ from math import radians, sin, cos, sqrt, atan2
 from selenium.common.exceptions import TimeoutException
 from threading import Lock
 from asyncio import create_task
+from aiohttp import web
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     """
@@ -487,11 +488,15 @@ def main():
     application.post_init = post_init
     WEBHOOK_URL = os.getenv('WEBHOOK_URL')
     PORT = int(os.getenv('PORT', 8000))
-
+    async def health_check(request):
+        return web.Response(text="OK")
+    web_app = web.Application()
+    web_app.router.add_get('/healthz', health_check)
     application.run_webhook(
         listen="0.0.0.0",
         port=PORT,
         webhook_url=WEBHOOK_URL,
+        web_app=web_app,
         # health_check_path='/healthz',
         allowed_updates=Update.ALL_TYPES,
     )
