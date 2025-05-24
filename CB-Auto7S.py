@@ -480,29 +480,24 @@ async def handle_health_check(request):
     
 def main():
     """Start the bot"""
-    # Create aiohttp web application
-    # app = web.Application()
-    # app.router.add_get('/healthz', handle_health_check)
-    
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("letgo", letgo))
     application.add_handler(CommandHandler("cancelauto", cancelauto))
     application.add_handler(CommandHandler("cancel", cancel))
     application.post_init = post_init
-    health_app = web.Application()
-    health_app.add_routes([web.get("/healthz", handle_health_check)])
     WEBHOOK_URL = os.getenv('WEBHOOK_URL')
     PORT = int(os.getenv('PORT', 8000))
-    await application.initialize()
+
     application.run_webhook(
         listen="0.0.0.0",
         port=PORT,
-        webhook_path="",
         webhook_url=WEBHOOK_URL,
-        server=health_app,
+        url_path="",
+        health_check_path="/healthz",
         allowed_updates=Update.ALL_TYPES,
     )
     await application.updater.wait_closed()
+    
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
