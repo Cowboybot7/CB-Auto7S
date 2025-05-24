@@ -481,10 +481,12 @@ async def handle_health_check(request):
 def main():
     """Start the bot"""
     # Create aiohttp web application
-    app = web.Application()
-    app.router.add_get('/healthz', handle_health_check)
+    # app = web.Application()
+    # app.router.add_get('/healthz', handle_health_check)
     
     application = Application.builder().token(TELEGRAM_TOKEN).build()
+    health_app = web.Application()
+    health_app.router.add_get('/healthz', handle_health_check)
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("letgo", letgo))
     application.add_handler(CommandHandler("cancelauto", cancelauto))
@@ -498,8 +500,8 @@ def main():
         webhook_url=WEBHOOK_URL,
         url_path='',
         # health_check_path='/healthz',
+        web_app=health_app,
         allowed_updates=Update.ALL_TYPES,
-        web_app=app,
     )
 
 if __name__ == "__main__":
