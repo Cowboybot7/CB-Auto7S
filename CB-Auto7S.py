@@ -497,7 +497,6 @@ def main():
         health_check_path="/healthz",
         allowed_updates=Update.ALL_TYPES,
     )
-    await application.updater.wait_closed()
     
 if __name__ == "__main__":
     main()
