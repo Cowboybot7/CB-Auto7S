@@ -479,45 +479,48 @@ async def letgo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     task = create_task(task_wrapper())
     scan_tasks[chat_id] = task
 
+# Telegram app
+application = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
+
+# Your command handlers
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("letgo", letgo))
+application.add_handler(CommandHandler("cancelauto", cancelauto))
+application.add_handler(CommandHandler("cancel", cancel))
+application.post_init = post_init
+
+# Health check route
 async def handle_health_check(request):
     return web.Response(text="OK")
 
+# Telegram webhook handler
+async def handle_telegram_webhook(request):
+    data = await request.json()
+    update = Update.de_json(data, application.bot)
+    await application.process_update(update)
+    return web.Response(text="OK")
+
 async def main():
-    application = (
-        Application.builder()
-        .token(os.getenv("TELEGRAM_TOKEN"))
-        .build()
-    )
-
-    # Add command handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("letgo", letgo))
-    application.add_handler(CommandHandler("cancelauto", cancelauto))
-    application.add_handler(CommandHandler("cancel", cancel))
-    application.post_init = post_init
-
-    # Create web application for health checks
-    web_app = web.Application()
-    web_app.add_routes([web.get("/healthz", handle_health_check)])
-
-    # ✅ Proper webhook initialization
     await application.initialize()
-    await application.bot.set_webhook(
-        url=os.getenv("WEBHOOK_URL"),
-        certificate=open('/path/to/cert.pem', 'rb') if NEED_CERT else None
-    )
 
-    # Start web server
-    server = await asyncio.get_event_loop().create_server(
-        protocol_factory=web_app.make_handler(),
-        host='0.0.0.0',
-        port=int(os.getenv("PORT", 8000))
-    )
+    # Set up aiohttp web server
+    app = web.Application()
+    app.router.add_get("/healthz", handle_health_check)
+    app.router.add_post("/", handle_telegram_webhook)  # Webhook at root
 
-    # Keep application running
-    await application.start()
-    await application.updater.start_polling()  # Not actually polling, just keeping alive
-    await server.serve_forever()
+    # Start the server
+    PORT = int(os.getenv("PORT", 8000))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", PORT)
+    await site.start()
+
+    # Set Telegram webhook manually
+    WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+    await application.bot.set_webhook(WEBHOOK_URL)
+    print("✅ Webhook set")
+
+    await application.updater.wait_closed()
 
 if __name__ == "__main__":
     asyncio.run(main())
