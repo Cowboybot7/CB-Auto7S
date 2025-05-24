@@ -511,6 +511,7 @@ async def main():
     application.post_init = post_init
 
     await application.initialize()
+    application.post_init = post_init
     await application.start()  # Start internal scheduler + post_init
 
     # Setup aiohttp web server
