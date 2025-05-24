@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from telegram import Update
-from telegram.ext import Application, ContextTypes, CommandHandler
+from telegram.ext import Application, ContextTypes, CommandHandler, TypeHandler
 import os
 import traceback
 import logging
@@ -278,7 +278,7 @@ async def post_init(application):
         BotCommand("cancel", "Cancel ongoing operation")
     ])
     schedule_next_scan(application.job_queue)  # Start scheduling
-
+    
 async def perform_scan_in(bot, chat_id, context=None):
     driver, (lat, lon) = create_driver()
     screenshot_file = None
@@ -474,12 +474,16 @@ async def letgo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     task = create_task(task_wrapper())
     scan_tasks[chat_id] = task
-
+    
+async def handle_health_check(request):
+    return web.Response(text="🤖 Bot is alive!")
+    
 def main():
     """Start the bot"""
-    # health_thread = threading.Thread(target=run_health_server, daemon=True)
-    # health_thread.start()
-
+    # Create aiohttp web application
+    app = web.Application()
+    app.router.add_get('/healthz', handle_health_check)
+    
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("letgo", letgo))
@@ -488,17 +492,14 @@ def main():
     application.post_init = post_init
     WEBHOOK_URL = os.getenv('WEBHOOK_URL')
     PORT = int(os.getenv('PORT', 8000))
-    async def health_check(request):
-        return web.Response(text="OK")
-    web_app = web.Application()
-    web_app.router.add_get('/healthz', health_check)
     application.run_webhook(
         listen="0.0.0.0",
         port=PORT,
         webhook_url=WEBHOOK_URL,
-        web_app=web_app,
+        url_path='',
         # health_check_path='/healthz',
         allowed_updates=Update.ALL_TYPES,
+        web_app=app,
     )
 
 if __name__ == "__main__":
