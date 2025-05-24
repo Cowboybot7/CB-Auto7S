@@ -1,4 +1,4 @@
-from selenium import webdriver
+afrom selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -498,17 +498,16 @@ async def main():
     WEBHOOK_URL = os.getenv("WEBHOOK_URL")
     PORT = int(os.getenv("PORT", 8000))
 
-    # aiohttp app with /healthz route
     health_app = web.Application()
     health_app.router.add_get("/healthz", handle_health_check)
 
-    # ✅ PTB 21: use run_webhook (not start_webhook)
+    # ✅ Correct param: url_path, not webhook_path
     await application.run_webhook(
         listen="0.0.0.0",
         port=PORT,
-        webhook_path="",
+        url_path="",               # this must match the path in webhook_url
         webhook_url=WEBHOOK_URL,
-        web_app=health_app,  # aiohttp app
+        web_app=health_app,
         allowed_updates=Update.ALL_TYPES,
     )
 
