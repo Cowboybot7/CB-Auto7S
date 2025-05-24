@@ -500,28 +500,24 @@ async def main():
     web_app = web.Application()
     web_app.add_routes([web.get("/healthz", handle_health_check)])
 
-    # ✅ Proper webhook configuration
-    await application.updater.start_webhook(
-        listen="0.0.0.0",
-        port=int(os.getenv("PORT", 8000)),
-        url_path="",
-        webhook_url=os.getenv("WEBHOOK_URL"),
+    # ✅ Proper webhook initialization
+    await application.initialize()
+    await application.bot.set_webhook(
+        url=os.getenv("WEBHOOK_URL"),
+        certificate=open('/path/to/cert.pem', 'rb') if NEED_CERT else None
     )
 
-    # Attach health check endpoint
-    application.updater.http_server.app.add_subapp("/", web_app)
+    # Start web server
+    server = await asyncio.get_event_loop().create_server(
+        protocol_factory=web_app.make_handler(),
+        host='0.0.0.0',
+        port=int(os.getenv("PORT", 8000))
+    )
 
-    # Keep the application running
+    # Keep application running
     await application.start()
-    await application.updater.start_polling()  # For health checks
-    await application.stop()
+    await application.updater.start_polling()  # Not actually polling, just keeping alive
+    await server.serve_forever()
 
 if __name__ == "__main__":
-    # ✅ Use the existing event loop instead of creating a new one
-    loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(main())
-    except KeyboardInterrupt:
-        pass
-    finally:
-        loop.close()
+    asyncio.run(main())
