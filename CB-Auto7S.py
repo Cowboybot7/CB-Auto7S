@@ -26,6 +26,7 @@ import asyncio
 from aiohttp import web
 import telegram
 print(f"✅ Running PTB version: {telegram.__version__}")
+from telegram.request import AiohttpRequest
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     """
@@ -480,25 +481,29 @@ async def letgo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_health_check(request):
     return web.Response(text="OK")
-    
-async def main():
-    """Start the bot"""
 
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
+async def main():
+    request = AiohttpRequest()  # <- Required in PTB 21+
+    application = (
+        Application.builder()
+        .token(TELEGRAM_TOKEN)
+        .request(request)
+        .build()
+    )
+
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("letgo", letgo))
     application.add_handler(CommandHandler("cancelauto", cancelauto))
     application.add_handler(CommandHandler("cancel", cancel))
     application.post_init = post_init
 
-    health_app = web.Application()
-    health_app.router.add_get('/healthz', handle_health_check)
-    
     WEBHOOK_URL = os.getenv('WEBHOOK_URL')
     PORT = int(os.getenv('PORT', 8000))
-    
+
+    health_app = web.Application()
+    health_app.router.add_get('/healthz', handle_health_check)
+
     await application.initialize()
-    
     await application.start_webhook(
         listen="0.0.0.0",
         port=PORT,
@@ -508,6 +513,6 @@ async def main():
         allowed_updates=Update.ALL_TYPES,
     )
     await application.updater.wait_closed()
-    
+
 if __name__ == "__main__":
     asyncio.run(main())
