@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from telegram import Update
-from telegram.ext import Application, ContextTypes, CommandHandler, TypeHandler
+from telegram.ext import Application, ContextTypes, CommandHandler
 import os
 import traceback
 import logging
@@ -22,7 +22,6 @@ from math import radians, sin, cos, sqrt, atan2
 from selenium.common.exceptions import TimeoutException
 from threading import Lock
 from asyncio import create_task
-from aiohttp import web
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     """
@@ -278,7 +277,7 @@ async def post_init(application):
         BotCommand("cancel", "Cancel ongoing operation")
     ])
     schedule_next_scan(application.job_queue)  # Start scheduling
-    
+
 async def perform_scan_in(bot, chat_id, context=None):
     driver, (lat, lon) = create_driver()
     screenshot_file = None
@@ -474,17 +473,18 @@ async def letgo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     task = create_task(task_wrapper())
     scan_tasks[chat_id] = task
-    
+
 def main():
     """Start the bot"""
+    # health_thread = threading.Thread(target=run_health_server, daemon=True)
+    # health_thread.start()
+
     application = Application.builder().token(TELEGRAM_TOKEN).build()
-    
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("letgo", letgo))
     application.add_handler(CommandHandler("cancelauto", cancelauto))
     application.add_handler(CommandHandler("cancel", cancel))
     application.post_init = post_init
-    
     WEBHOOK_URL = os.getenv('WEBHOOK_URL')
     PORT = int(os.getenv('PORT', 8000))
 
@@ -492,8 +492,9 @@ def main():
         listen="0.0.0.0",
         port=PORT,
         webhook_url=WEBHOOK_URL,
+        # health_check_path='/healthz',
         allowed_updates=Update.ALL_TYPES,
     )
-    
+
 if __name__ == "__main__":
     main()
