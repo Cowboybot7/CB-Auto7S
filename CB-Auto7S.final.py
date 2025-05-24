@@ -156,6 +156,8 @@ async def auto_scanin_job(context: ContextTypes.DEFAULT_TYPE):
         schedule_next_scan(context.job_queue)
 
 def schedule_next_scan(job_queue):
+    logger.info("📅 schedule_next_scan() called")
+    logger.info(f"👤 CHAT_ID: {CHAT_ID}")
     """Schedule next mission and reminder for Saturdays only."""
     # First remove ALL existing jobs to prevent duplicates
     for job in job_queue.get_jobs_by_name("auto_scanin"):
