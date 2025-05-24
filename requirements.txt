@@ -1,9 +1,8 @@
+python-telegram-bot[webhooks,job-queue]==20.5
 selenium==4.15.2
+webdriver-manager==4.0.1
+aiohttp==3.9.3
 python-dotenv==1.0.0
 pytz==2023.3.post1
-pillow==10.0.0
-python-telegram-bot[job-queue]==20.5
-python-telegram-bot[webhooks]>=20.3
-cryptography>=3.4  # Required for SSL/webhooks
-aiohttp==3.9.3
-flask
+pillow==10.1.0
+cryptography>=41.0.7
