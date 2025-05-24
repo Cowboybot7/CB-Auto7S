@@ -475,17 +475,16 @@ async def letgo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     task = create_task(task_wrapper())
     scan_tasks[chat_id] = task
     
-async def handle_health_check(request):
-    return web.Response(text="🤖 Bot is alive!")
-    
 def main():
     """Start the bot"""
     application = Application.builder().token(TELEGRAM_TOKEN).build()
+    
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("letgo", letgo))
     application.add_handler(CommandHandler("cancelauto", cancelauto))
     application.add_handler(CommandHandler("cancel", cancel))
     application.post_init = post_init
+    
     WEBHOOK_URL = os.getenv('WEBHOOK_URL')
     PORT = int(os.getenv('PORT', 8000))
 
@@ -493,8 +492,6 @@ def main():
         listen="0.0.0.0",
         port=PORT,
         webhook_url=WEBHOOK_URL,
-        url_path="",
-        health_check_path="/healthz",
         allowed_updates=Update.ALL_TYPES,
     )
     
