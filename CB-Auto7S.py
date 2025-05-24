@@ -24,6 +24,8 @@ from threading import Lock
 from asyncio import create_task
 import asyncio
 from aiohttp import web
+import telegram
+print(f"✅ Running PTB version: {telegram.__version__}")
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     """
