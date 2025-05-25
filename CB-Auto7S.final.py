@@ -173,7 +173,7 @@ def schedule_next_scan(job_queue):
         logger.info(f"🗑 Removing existing job: {job.name}")
         job.schedule_removal()
 
-    now = TIMEZONE.localize(datetime.now())
+    now = datetime.now(TIMEZONE)
     logger.info(f"🕒 Current time: {now}")
 
     def get_next_slot(now):
