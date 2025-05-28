@@ -482,7 +482,7 @@ async def main():
     application.add_handler(CommandHandler("cancel", cancel))
     application.post_init = post_init
 
-    # Health check for UptimeRobot
+    # Start health check server
     app = web.Application()
     app.router.add_get("/healthz", handle_health_check)
     runner = web.AppRunner(app)
@@ -491,9 +491,18 @@ async def main():
     await site.start()
     print("✅ Health check route available at /healthz")
 
-    # ✅ This avoids the Conflict error:
-    print("🤖 Starting bot polling...")
-    await application.run_polling()
+    # Start bot manually
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling()
+    print("🤖 Bot polling started...")
+
+    try:
+        await asyncio.Event().wait()  # Keep alive forever
+    finally:
+        await application.updater.stop()
+        await application.stop()
+        await application.shutdown()
 
 if __name__ == "__main__":
     asyncio.run(main())
