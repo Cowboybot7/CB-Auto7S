@@ -481,7 +481,8 @@ async def main():
     application.add_handler(CommandHandler("cancelauto", cancelauto))
     application.add_handler(CommandHandler("cancel", cancel))
     application.post_init = post_init
-
+    await post_init(application)
+    
     # Start health check server
     app = web.Application()
     app.router.add_get("/healthz", handle_health_check)
