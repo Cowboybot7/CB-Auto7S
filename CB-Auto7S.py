@@ -469,28 +469,10 @@ async def letgo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     task = create_task(task_wrapper())
     scan_tasks[chat_id] = task
 
-def run_health_server():
-    """Basic /healthz server for UptimeRobot to ping."""
-    class HealthHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            if self.path == '/healthz':
-                self.send_response(200)
-                self.send_header('Content-type', 'text/plain')
-                self.end_headers()
-                self.wfile.write(b'OK')
-            else:
-                self.send_response(404)
-                self.end_headers()
-
-    server = HTTPServer(("0.0.0.0", 8000), HealthHandler)
-    server.serve_forever()
-
-def main():
-    """Start the bot using long polling and run a health check server."""
-    # Start the /healthz server in the background
-    threading.Thread(target=run_health_server, daemon=True).start()
-
-    # Start Telegram bot with long polling
+async def handle_health_check(request):
+    return web.Response(text="OK")
+    
+async def main():
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("letgo", letgo))
@@ -498,7 +480,24 @@ def main():
     application.add_handler(CommandHandler("cancel", cancel))
     application.post_init = post_init
 
-    application.run_polling()
-    
+    # Create health check server for Render + UptimeRobot
+    app = web.Application()
+    app.router.add_get("/healthz", handle_health_check)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", int(os.getenv("PORT", 8000)))
+    await site.start()
+    print("✅ Health check route available at /healthz")
+
+    # Start the bot with polling (safe with background tasks)
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling()
+    print("🤖 Bot polling started...")
+
+    # Run indefinitely
+    await asyncio.Event().wait()
+
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
