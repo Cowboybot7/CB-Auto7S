@@ -482,7 +482,6 @@ async def main():
     application.add_handler(CommandHandler("letgo", letgo))
     application.add_handler(CommandHandler("cancelauto", cancelauto))
     application.add_handler(CommandHandler("cancel", cancel))
-    application.add_handler(CommandHandler("next", nextjob))
 
     # Set up aiohttp health check route for Render/UptimeRobot
     app = web.Application()
