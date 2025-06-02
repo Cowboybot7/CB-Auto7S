@@ -278,7 +278,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     task = scan_tasks.get(chat_id)
     async with driver_lock:
-        driver = active_drivers.get(chat_id)
+        driver = active_drivers.get(chat_id, None)
 
     if not task and not driver:
         await update.message.reply_text("ℹ️ No active operation to cancel")
@@ -299,7 +299,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await update.message.reply_text(f"⚠️ Error during cancellation: {str(e)}")
         finally:
-            del active_drivers[chat_id]
+            del active_drivers[chat_id, None]
             if os.path.exists(filename):
                 os.remove(filename)
     else:
@@ -340,7 +340,7 @@ async def perform_scan_in(bot, chat_id, context=None):
     driver, (lat, lon) = create_driver()
     screenshot_file = None
     async with driver_lock:
-        active_drivers[chat_id] = driver
+        active_drivers[chat_id, None] = driver
     try:
         start_time = datetime.now(TIMEZONE).strftime("%H:%M:%S")
         await bot.send_message(chat_id, f"🕒 Automation started at {start_time} (ICT)")
@@ -490,7 +490,7 @@ async def perform_scan_in(bot, chat_id, context=None):
         # Cleanup active_drivers
         async with driver_lock:
             if chat_id in active_drivers:
-                del active_drivers[chat_id]
+                del active_drivers[chat_id, None]
         
         # File cleanup
         for f in [screenshot_file, f"error_{timestamp}.png", f"page_source_{timestamp}.html"]:
