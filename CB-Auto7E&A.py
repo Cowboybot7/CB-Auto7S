@@ -508,10 +508,12 @@ async def perform_scan_in(bot, chat_id, context=None):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message"""
     try:
-        if not update.message:
-            logger.error("⚠️ /start triggered without a message object!")
+        message = update.effective_message
+        if not message:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ Could not process /start properly.")
             return
-        await update.message.reply_text(
+
+        await message.reply_text(
             "🚀 *Mission Bot Ready!*\n\n"
             "Use /letgo to trigger automation\n"
             "Commands:\n"
