@@ -328,8 +328,6 @@ async def post_init(application):
             BotCommand("letgo", "Initiate mission"),
             BotCommand("cancelauto", "Cancel next auto mission and reschedule"),
             BotCommand("cancel", "Cancel ongoing operation"),
-            BotCommand("next", "Show next auto mission time"),
-            BotCommand("rescan", "Manually reschedule next mission")
         ])
         schedule_next_scan(application.job_queue)
         application.job_queue.run_repeating(watchdog_job, interval=600, name="watchdog")
