@@ -583,14 +583,13 @@ async def handle_telegram_webhook(request):
         return web.Response(status=500, text="Webhook failed")
 
 async def main():
-    await application.initialize()
     application = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
+    await application.initialize()
+    
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("letgo", letgo))
     application.add_handler(CommandHandler("cancelauto", cancelauto))
     application.add_handler(CommandHandler("cancel", cancel))
-    application.add_handler(CommandHandler("next", next_mission))
-    application.add_handler(CommandHandler("rescan", rescan))  # 👈 Add this line
     
     application.post_init = post_init
     app = web.Application()
