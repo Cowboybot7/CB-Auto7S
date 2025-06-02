@@ -567,17 +567,6 @@ async def watchdog_job(context: ContextTypes.DEFAULT_TYPE):
                 text=f"🔁 Watchdog: Auto mission re-scheduled for {next_run.strftime('%A %H:%M')} ICT"
             )
 
-#Telegram App
-application = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
-application.add_handler(CommandHandler("start", start))
-application.add_handler(CommandHandler("letgo", letgo))
-application.add_handler(CommandHandler("cancelauto", cancelauto))
-application.add_handler(CommandHandler("cancel", cancel))
-application.add_handler(CommandHandler("next", next_mission))
-application.add_handler(CommandHandler("rescan", rescan))  # 👈 Add this line
-
-application.post_init = post_init
-
 async def handle_health_check(request):
     return web.Response(text="OK")
 
@@ -595,7 +584,15 @@ async def handle_telegram_webhook(request):
 
 async def main():
     await application.initialize()
-
+    application = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("letgo", letgo))
+    application.add_handler(CommandHandler("cancelauto", cancelauto))
+    application.add_handler(CommandHandler("cancel", cancel))
+    application.add_handler(CommandHandler("next", next_mission))
+    application.add_handler(CommandHandler("rescan", rescan))  # 👈 Add this line
+    
+    application.post_init = post_init
     app = web.Application()
     app.router.add_get("/healthz", handle_health_check)
     app.router.add_post("/webhook", handle_telegram_webhook)
