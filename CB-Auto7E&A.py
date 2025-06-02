@@ -56,6 +56,7 @@ BASE_LONGITUDE = float(os.getenv('BASE_LONGITUDE', '104.911449'))
 MAX_DEVIATION_METERS = 150
 CHAT_ID = os.getenv('CHAT_ID')
 
+application = None
 active_drivers = {}
 driver_lock = Lock()
 scan_tasks = {}
@@ -583,6 +584,7 @@ async def handle_telegram_webhook(request):
         return web.Response(status=500, text="Webhook failed")
 
 async def main():
+    global application
     application = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
     await application.initialize()
     
