@@ -176,7 +176,11 @@ def schedule_next_scan(job_queue):
                     minute = random.randint(min_start, min_end)
                     naive_time = datetime.combine(future_day.date(), dt_time(hour, minute))
                     candidate_time = TIMEZONE.localize(naive_time)
-                    if candidate_time > current_time:
+                    if candidate_time > current_time or (
+                        future_day.date() == current_time.date() and
+                        scan_type == "evening" and current_time.hour < 19
+                    ):
+
                         return scan_type, candidate_time
         return None, None
 
@@ -247,20 +251,21 @@ async def cancelauto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jobs = context.job_queue.get_jobs_by_name("auto_scanin") + context.job_queue.get_jobs_by_name("reminder")
     if not jobs:
         await update.message.reply_text("ℹ️ No scheduled auto missions to cancel")
-        return
+    else:
+        for job in jobs:
+            job.schedule_removal()
+        await update.message.reply_text("🚫 Auto missions canceled.")
 
-    for job in jobs:
-        job.schedule_removal()
-
-    # Schedule for next weekday morning
-    next_run = schedule_next_scan(context.job_queue, force_next_morning=True)
-    
-    await update.message.reply_text(
-        f"🚫 Auto missions canceled until {next_run.strftime('%A')} morning\n"
-        f"⏰ Next mission: {next_run.strftime('%a %H:%M')} ICT\n"
-        "⚠️ Reminder: Manual mission still available via /letgo",
-        parse_mode="Markdown"
-    )
+    # Reschedule next mission (based on regular logic)
+    next_run = schedule_next_scan(context.job_queue)
+    if next_run:
+        await update.message.reply_text(
+            f"⏰ Next auto mission scheduled for {next_run.strftime('%A %H:%M')} ICT"
+        )
+    else:
+        await update.message.reply_text(
+            "⚠️ No valid scan slot found for the upcoming days."
+        )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -298,7 +303,21 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 os.remove(filename)
     else:
         await update.message.reply_text("✅ Operation cancelled")
-            
+
+async def rescan(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    if user_id not in AUTHORIZED_USERS:
+        await update.message.reply_text("❌ Unauthorized")
+        return
+
+    next_run = schedule_next_scan(context.job_queue)
+    if next_run:
+        await update.message.reply_text(
+            f"🔄 Re-scheduled next auto mission at {next_run.strftime('%A %H:%M')} ICT"
+        )
+    else:
+        await update.message.reply_text("⚠️ No valid scan slot found in schedule.")
+
 # Update post_init
 async def post_init(application):
     try:
@@ -308,9 +327,12 @@ async def post_init(application):
             BotCommand("letgo", "Initiate mission"),
             BotCommand("cancelauto", "Cancel next auto mission and reschedule"),
             BotCommand("cancel", "Cancel ongoing operation"),
-            BotCommand("next", "Show next auto mission time")
+            BotCommand("next", "Show next auto mission time"),
+            BotCommand("rescan", "Manually reschedule next mission")
         ])
         schedule_next_scan(application.job_queue)
+        application.job_queue.run_repeating(watchdog_job, interval=600, name="watchdog")
+        logger.info("🛡️ Watchdog started to monitor job health")
     except Exception as e:
         logger.error(f"❌ post_init() failed: {e}")
     
@@ -532,6 +554,17 @@ async def letgo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("🎯 Mission task scheduled for execution")
     scan_tasks[chat_id] = task
 
+async def watchdog_job(context: ContextTypes.DEFAULT_TYPE):
+    auto_jobs = context.job_queue.get_jobs_by_name("auto_scanin")
+    if not auto_jobs:
+        logger.warning("🛡️ Watchdog: No auto_scanin job found. Rescheduling...")
+        next_run = schedule_next_scan(context.job_queue)
+        if next_run:
+            await context.bot.send_message(
+                chat_id=CHAT_ID,
+                text=f"🔁 Watchdog: Auto mission re-scheduled for {next_run.strftime('%A %H:%M')} ICT"
+            )
+
 #Telegram App
 application = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
 application.add_handler(CommandHandler("start", start))
@@ -539,6 +572,8 @@ application.add_handler(CommandHandler("letgo", letgo))
 application.add_handler(CommandHandler("cancelauto", cancelauto))
 application.add_handler(CommandHandler("cancel", cancel))
 application.add_handler(CommandHandler("next", next_mission))
+application.add_handler(CommandHandler("rescan", rescan))  # 👈 Add this line
+
 application.post_init = post_init
 
 async def handle_health_check(request):
