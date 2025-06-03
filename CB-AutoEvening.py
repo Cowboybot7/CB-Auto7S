@@ -168,6 +168,9 @@ async def next_scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ No auto scan-in currently scheduled.")
 
 async def trigger_auto_scan(app):
+    logger.info("⚙️ Auto scan triggered")
+    logger.info(f"AUTHORIZED_USERS = {AUTHORIZED_USERS}")
+    logger.info(f"auto_scan_enabled = {auto_scan_enabled}")
     if not auto_scan_enabled:
         logger.info("🚫 Auto scan skipped (paused by user)")
         return
@@ -206,6 +209,7 @@ def schedule_daily_scan(application):
 
         logger.info(f"✅ Scheduled auto scan at {hour:02d}:{minute:02d} ICT")
 
+        # Schedule auto scan
         scheduler.add_job(
             lambda: trigger_auto_scan(application),
             CronTrigger(day_of_week='mon-fri' if weekday <= 4 else 'sat',
@@ -215,6 +219,34 @@ def schedule_daily_scan(application):
             replace_existing=True
         )
 
+        # Reminder 1 hour before
+        reminder_hour = hour - 1
+        reminder_minute = minute
+
+        async def send_reminders():
+            for user_id in AUTHORIZED_USERS:
+                try:
+                    await application.bot.send_message(
+                        chat_id=int(user_id),
+                        text=f"🔔 Reminder: Auto scan will run at {hour:02d}:{minute:02d} ICT (in 1 hour)"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send reminder to {user_id}: {e}")
+
+        scheduler.add_job(
+            lambda: asyncio.create_task(send_reminders()),
+            CronTrigger(day_of_week='mon-fri' if weekday <= 4 else 'sat',
+                        hour=reminder_hour,
+                        minute=reminder_minute),
+            id='daily_reminder',
+            replace_existing=True
+        )
+
+        # Optional debug log
+        for job in scheduler.get_jobs():
+            logger.info(f"📌 Job Scheduled: {job.id} at {job.next_run_time}")
+
+    # Recalculate scan time every day at 6AM ICT
     scheduler.add_job(
         schedule_evening_afternoon_scans,
         CronTrigger(day_of_week='mon-sat', hour=6, minute=0),
