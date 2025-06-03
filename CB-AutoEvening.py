@@ -160,12 +160,20 @@ def schedule_daily_scan(application):
     scheduler.start()
     
 async def next_scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    job = scheduler.get_job('daily_random_scan')
-    if job:
-        next_run = job.next_run_time.astimezone(TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
-        await update.message.reply_text(f"📅 Next auto scan-in:\n{next_run} (ICT)")
-    else:
-        await update.message.reply_text("⚠️ No auto scan-in currently scheduled.")
+    response_lines = []
+    job_ids = ['daily_random_scan', 'daily_reminder']
+
+    for job_id in job_ids:
+        job = scheduler.get_job(job_id)
+        if job and job.next_run_time:
+            time_str = job.next_run_time.astimezone(TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
+            label = "🕒 Auto Scan-In" if job_id == 'daily_random_scan' else "⏰ Reminder"
+            response_lines.append(f"{label} → {time_str} (ICT)")
+        else:
+            label = "Auto Scan-In" if job_id == 'daily_random_scan' else "Reminder"
+            response_lines.append(f"⚠️ {label} not scheduled.")
+
+    await update.message.reply_text("📅 Scheduled Times:\n" + "\n".join(response_lines))
 
 async def trigger_auto_scan(app):
     logger.info("⚙️ Auto scan triggered")
