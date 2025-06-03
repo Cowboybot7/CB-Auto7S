@@ -235,7 +235,11 @@ def schedule_daily_scan(application):
 
         # Optional debug log
         for job in scheduler.get_jobs():
-            logger.info(f"📌 Job Scheduled: {job.id} at {job.next_run_time}")
+            run_time = getattr(job, "next_run_time", None)
+            if run_time:
+                logger.info(f"📌 Job Scheduled: {job.id} at {run_time.astimezone(TIMEZONE)}")
+            else:
+                logger.info(f"📌 Job Scheduled: {job.id} but no next run time")
 
     # Recalculate scan time every day at 6AM ICT
     scheduler.add_job(
