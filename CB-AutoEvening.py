@@ -145,22 +145,22 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def schedule_daily_scan(application):
     def schedule_evening_afternoon_scans():
         now = datetime.now(TIMEZONE)
-        weekday = now.weekday()  # Monday = 0 ... Saturday = 5
+        weekday = now.weekday()
 
         if weekday <= 4:
-            # Monday–Friday: 17:59–18:27
+            # Mon–Fri: 17:59–18:27
             hour = 18
             minute = random.randint(0, 27)
             if minute < 1:
                 hour = 17
-                minute += 59  # e.g., 17:59
+                minute += 59
         elif weekday == 5:
             # Saturday: 12:07–12:17
             hour = 12
             minute = random.randint(7, 17)
         else:
             logger.info("🛌 Sunday – No scan scheduled")
-            return  # No scan on Sunday
+            return
 
         logger.info(f"✅ Scheduled auto scan at {hour:02d}:{minute:02d} ICT")
 
@@ -173,7 +173,6 @@ def schedule_daily_scan(application):
             replace_existing=True
         )
 
-    # Reschedule each day at 6:00 AM
     scheduler.add_job(
         schedule_evening_afternoon_scans,
         CronTrigger(day_of_week='mon-sat', hour=6, minute=0),
@@ -181,7 +180,6 @@ def schedule_daily_scan(application):
         replace_existing=True
     )
 
-    # Call immediately on startup
     schedule_evening_afternoon_scans()
     scheduler.start()
     
