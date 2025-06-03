@@ -141,23 +141,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id, "⚠️ No active browser session found.")
     else:
         await context.bot.send_message(chat_id, "ℹ️ No active scan-in process to cancel.")
-
-def schedule_daily_scan(application):
-    scheduler = AsyncIOScheduler(timezone=TIMEZONE)
-
-    def random_minute_scan():
-        minute = random.randint(45, 59)
-        trigger = CronTrigger(hour=7, minute=minute)
-        scheduler.add_job(
-            lambda: trigger_auto_scan(application),
-            trigger=trigger,
-            id='daily_random_scan',
-            replace_existing=True
-        )
-        logger.info(f"✅ Scheduled scan-in at 7:{minute:02d} AM ICT")
-
-    random_minute_scan()
-    scheduler.start()
     
 async def next_scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     response_lines = []
