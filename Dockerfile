@@ -36,4 +36,4 @@ WORKDIR /app
 COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python", "-u", "CB-AutoEvening(fix).py"]
+CMD ["python", "-u", "CB-AutoEvening(fix7).py"]
