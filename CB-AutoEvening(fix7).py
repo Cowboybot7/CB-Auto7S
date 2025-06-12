@@ -156,11 +156,12 @@ async def perform_scan_in(bot, chat_id, user_id):
     except Exception as e:
         error_time = datetime.now(TIMEZONE).strftime("%H:%M:%S")
         error_text = str(e).strip() or "Unknown error"
+        await bot.send_message(chat_id, f"❌ Test scan failed at {error_time} (ICT): {error_text}")
         logger.error(traceback.format_exc())
-        timestamp = datetime.now(TIMEZONE).strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.now(TIMEZONE).strftime("%Y%m%d-%H%M%S")
         if driver:
             driver.save_screenshot(f"test_error_{timestamp}.png")
-            with open(f"test_page_source_{timestamp}.html") as photo:
+            with open(f"test_page_source_{timestamp}.html", "w") as f:
                 f.write(driver.page_source)
             with open(f"test_error_{timestamp}.png", 'rb') as photo:
                 await bot.send_photo(chat_id=chat_id, photo=photo, caption="Test error screenshot")
@@ -171,7 +172,7 @@ async def perform_scan_in(bot, chat_id, user_id):
             user_drivers.pop(user_id, None)
 
 async def trigger_test_scan():
-    logger.info("⚙️ Test auto scan triggered at 14:00 ICT")
+    logger.info("⚙️ Test auto scan triggered at 14:30 ICT")
     bot = Bot(token=TELEGRAM_TOKEN)
     for user_id in AUTHORIZED_USERS:
         chat_id = int(user_id)
@@ -183,8 +184,8 @@ async def trigger_test_scan():
         await scan_task()  # Run sequentially to avoid resource issues
 
 async def schedule_test_scan():
-    # Schedule test scan for 14:00 ICT today (June 12, 2025)
-    test_time = datetime(2025, 6, 12, 14, 0, 0, tzinfo=TIMEZONE)
+    # Schedule test scan for 14:30 ICT today (June 12, 2025)
+    test_time = datetime(2025, 6, 12, 14, 30, 0, tzinfo=TIMEZONE)
     logger.info(f"✅ Scheduling test scan at {test_time.strftime('%Y-%m-%d %H:%M:%S')} ICT")
     scheduler.add_job(
         lambda: asyncio.create_task(trigger_test_scan()),
@@ -200,7 +201,7 @@ async def main():
     for user_id in AUTHORIZED_USERS:
         await bot.send_message(
             chat_id=int(user_id),
-            text="🔔 Test script started. Auto scan scheduled for 14:00 ICT."
+            text="🔔 Test script started. Auto scan scheduled for 14:30 ICT."
         )
     # Schedule and run the test scan
     await schedule_test_scan()
