@@ -12,8 +12,6 @@ import logging
 import time
 from datetime import datetime, timedelta
 import pytz
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import threading
 import math
 import random
 from telegram import BotCommand
@@ -33,6 +31,8 @@ BASE_LATITUDE = float(os.getenv('BASE_LATITUDE', '11.545380'))
 BASE_LONGITUDE = float(os.getenv('BASE_LONGITUDE', '104.911449'))
 MAX_DEVIATION_METERS = 150
 
+# Initialize application and scheduler
+application = Application.builder().token(TELEGRAM_TOKEN).build()
 scheduler = AsyncIOScheduler(timezone=TIMEZONE)
 auto_scan_enabled = True
 user_scan_tasks = {}
@@ -46,10 +46,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def calculate_distance(lat1, lon1, lat2, lon2):
-    """
-    Calculate distance in meters between two coordinates using Haversine formula
-    """
-    R = 6373.0  # Earth radius in kilometers
+    R = 6373.0
     lat1 = radians(lat1)
     lon1 = radians(lon1)
     lat2 = radians(lat2)
@@ -58,11 +55,10 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     dlat = lat2 - lat1
     a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
     c = 2 * atan2(sqrt(a), sqrt(1-a))
-    return round(R * c * 1000, 1)  # Convert to meters and round
+    return round(R * c * 1000, 1)
 
 def generate_random_coordinates():
-    """Generate random coordinates within MAX_DEVIATION_METERS of base location"""
-    radius_deg = MAX_DEVIATION_METERS / 111320  # 1 degree ≈ 111,320 meters
+    radius_deg = MAX_DEVIATION_METERS / 111320
     angle = math.radians(random.uniform(0, 360))
     distance = random.uniform(0, radius_deg)
     new_lat = BASE_LATITUDE + (distance * math.cos(angle))
@@ -71,7 +67,7 @@ def generate_random_coordinates():
 
 def create_driver():
     options = Options()
-    options.binary_location = '/usr/bin/chromium'
+    options.binary_location = '/usr/bin/chromium-browser'  # Render-specific path
     options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
@@ -128,7 +124,7 @@ async def next_scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response_lines.append("⚠️ Auto Scan-In not scheduled.")
     await update.message.reply_text("📅 Scheduled Times:\n" + "\n".join(response_lines))
 
-async def trigger_auto_scan(app):
+async def trigger_auto_scan():
     logger.info("⚙️ Auto scan triggered")
     if not auto_scan_enabled:
         logger.info("🚫 Auto scan skipped (paused by user)")
@@ -140,13 +136,13 @@ async def trigger_auto_scan(app):
             continue
         async def scan_task():
             try:
-                await perform_scan_in(app.bot, chat_id, user_id, {"cancelled": False})
+                await perform_scan_in(application.bot, chat_id, user_id, {"cancelled": False})
             except Exception as e:
                 logger.error(f"Auto scan failed for user {user_id}: {str(e)}")
         task = asyncio.create_task(scan_task())
         user_scan_tasks[user_id] = task
 
-def schedule_daily_scan(application):
+def schedule_daily_scan():
     def get_random_scan_time():
         now = datetime.now(TIMEZONE)
         weekday = now.weekday()
@@ -173,12 +169,11 @@ def schedule_daily_scan(application):
             return
         logger.info(f"✅ Scheduling auto scan at {scan_time.strftime('%Y-%m-%d %H:%M:%S')} ICT")
         scheduler.add_job(
-            lambda: asyncio.create_task(trigger_auto_scan(application)),
+            lambda: asyncio.create_task(trigger_auto_scan()),
             DateTrigger(run_date=scan_time, timezone=TIMEZONE),
             id='daily_random_scan',
             replace_existing=True
         )
-        # Schedule the next scheduling job for 6 AM tomorrow
         tomorrow = datetime.now(TIMEZONE) + timedelta(days=1)
         next_schedule_time = tomorrow.replace(hour=6, minute=0, second=0, microsecond=0)
         scheduler.add_job(
@@ -188,7 +183,6 @@ def schedule_daily_scan(application):
             replace_existing=True
         )
 
-    # Schedule the first scan
     asyncio.create_task(schedule_scan())
     scheduler.start()
 
@@ -342,14 +336,14 @@ async def main():
         BotCommand("next", "Show next auto scan-in time"),
     ]
     await application.bot.set_my_commands(commands)
-    schedule_daily_scan(application)
+    schedule_daily_scan()
     app = web.Application()
     app.router.add_get("/", handle_root)
     app.router.add_get("/healthz", handle_health_check)
     app.router.add_post("/webhook", handle_telegram_webhook)
     runner = web.AppRunner(app)
     await runner.setup()
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("PORT", 8080))  # Render default port
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
     webhook_url = os.getenv("WEBHOOK_URL")
