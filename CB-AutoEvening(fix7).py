@@ -1,3 +1,4 @@
+```python
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -172,7 +173,7 @@ async def perform_scan_in(bot, chat_id, user_id):
             user_drivers.pop(user_id, None)
 
 async def trigger_test_scan():
-    logger.info("⚙️ Test auto scan triggered at 11:50 AM ICT")
+    logger.info("⚙️ Test auto scan triggered at 13:00 ICT")
     bot = Bot(token=TELEGRAM_TOKEN)
     for user_id in AUTHORIZED_USERS:
         chat_id = int(user_id)
@@ -184,8 +185,8 @@ async def trigger_test_scan():
         await scan_task()  # Run sequentially to avoid resource issues
 
 async def schedule_test_scan():
-    # Schedule test scan for 11:50 AM ICT today (June 12, 2025)
-    test_time = datetime(2025, 6, 12, 12, 09, 0, tzinfo=TIMEZONE)
+    # Schedule test scan for 13:00 ICT today (June 12, 2025)
+    test_time = datetime(2025, 6, 12, 13, 0, 0, tzinfo=TIMEZONE)
     logger.info(f"✅ Scheduling test scan at {test_time.strftime('%Y-%m-%d %H:%M:%S')} ICT")
     scheduler.add_job(
         lambda: asyncio.create_task(trigger_test_scan()),
@@ -201,7 +202,7 @@ async def main():
     for user_id in AUTHORIZED_USERS:
         await bot.send_message(
             chat_id=int(user_id),
-            text="🔔 Test script started. Auto scan scheduled for 11:50 AM ICT."
+            text="🔔 Test script started. Auto scan scheduled for 13:00 ICT."
         )
     # Schedule and run the test scan
     await schedule_test_scan()
