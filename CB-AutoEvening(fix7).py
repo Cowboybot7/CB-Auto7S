@@ -1,4 +1,3 @@
-```python
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -211,4 +210,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-```
