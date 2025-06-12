@@ -1,4 +1,3 @@
-```python
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -186,7 +185,7 @@ async def trigger_test_scan():
 
 async def schedule_test_scan():
     # Schedule test scan for 11:50 AM ICT today (June 12, 2025)
-    test_time = datetime(2025, 6, 12, 11, 59, 0, tzinfo=TIMEZONE)
+    test_time = datetime(2025, 6, 12, 12, 09, 0, tzinfo=TIMEZONE)
     logger.info(f"✅ Scheduling test scan at {test_time.strftime('%Y-%m-%d %H:%M:%S')} ICT")
     scheduler.add_job(
         lambda: asyncio.create_task(trigger_test_scan()),
