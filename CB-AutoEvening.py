@@ -264,7 +264,6 @@ def schedule_daily_scan(application):
     )
 
     schedule_evening_afternoon_scans()
-    scheduler.start()
 
 async def pause_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global auto_scan_enabled
@@ -634,7 +633,11 @@ async def main():
         allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True
     )
-    scheduler.start()
+    
+    # Start scheduler only once here
+    if not scheduler.running:
+        scheduler.start()
+    
     # Verify webhook was set
     webhook_info = await application.bot.get_webhook_info()
     logger.info(f"Webhook Info: {webhook_info}")
@@ -648,4 +651,10 @@ async def main():
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Create a new event loop explicitly
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(main())
+    finally:
+        loop.close()
