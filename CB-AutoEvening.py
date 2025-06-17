@@ -157,7 +157,21 @@ async def next_scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
             response_lines.append(f"⚠️ {label} not scheduled.")
 
     await update.message.reply_text("📅 Scheduled Times:\n" + "\n".join(response_lines))
-
+    
+async def run_auto_scan_for_user(app, user_id, chat_id):
+    """Helper function to run scan for a specific user"""
+    try:
+        logger.info(f"Starting auto scan for user {user_id}")
+        await perform_scan_in(
+            app.bot, 
+            chat_id, 
+            user_id, 
+            {"cancelled": False},
+            is_auto=True  # Mark as auto scan
+        )
+    except Exception as e:
+        logger.error(f"Auto scan failed for user {user_id}: {str(e)}")
+        
 async def trigger_auto_scan(app):
     logger.info("⚙️ Auto scan triggered")
     logger.info(f"AUTHORIZED_USERS = {AUTHORIZED_USERS}")
@@ -169,14 +183,13 @@ async def trigger_auto_scan(app):
     for user_id in AUTHORIZED_USERS:
         chat_id = int(user_id)
         if user_id in user_scan_tasks and not user_scan_tasks[user_id].done():
-            continue  # skip if already scanning
-        async def scan_task():
-            try:
-                await perform_scan_in(app.bot, chat_id, user_id, {"cancelled": False})
-            except Exception as e:
-                logger.error(f"Auto scan failed for user {user_id}: {str(e)}")
-        task = asyncio.create_task(scan_task())
+            logger.info(f"⚠️ User {user_id} already has an active scan task. Skipping.")
+            continue
+
+        # Create and store task for this user
+        task = asyncio.create_task(run_auto_scan_for_user(app, user_id, chat_id))
         user_scan_tasks[user_id] = task
+        logger.info(f"🔧 Created auto scan task for user {user_id}")
 
 def schedule_daily_scan(application):
     def schedule_evening_afternoon_scans():
@@ -202,10 +215,11 @@ def schedule_daily_scan(application):
 
         # Schedule auto scan
         scheduler.add_job(
-            lambda: trigger_auto_scan(application),
+            trigger_auto_scan,
             CronTrigger(day_of_week='mon-fri' if weekday <= 4 else 'sat',
                         hour=hour,
                         minute=minute),
+            args=[application],  # Pass application instance
             id='daily_random_scan',
             replace_existing=True
         )
@@ -262,13 +276,15 @@ async def resume_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     auto_scan_enabled = True
     await update.message.reply_text("✅ Auto scan-in resumed.")
     
-async def perform_scan_in(bot, chat_id, user_id, cancel_flag):
+async def perform_scan_in(bot, chat_id, user_id, cancel_flag, is_auto=False):  # Added is_auto flag
     driver = None
     try:
         driver, (lat, lon) = create_driver()
         user_drivers[user_id] = driver
         start_time = datetime.now(TIMEZONE).strftime("%H:%M:%S")
-        await bot.send_message(chat_id, f"🕒 Automation started at {start_time} (ICT)")
+        
+        if not is_auto:  # Only send message for manual scans
+            await bot.send_message(chat_id, f"🕒 Automation started at {start_time} (ICT)")
         
         # Step 1: Login
         await bot.send_message(chat_id, "🚀 Starting browser automation...")
@@ -384,7 +400,8 @@ async def perform_scan_in(bot, chat_id, user_id, cancel_flag):
         # Only cleanup if not cancelled
         if driver and not cancel_flag["cancelled"]:
             driver.quit()
-            user_drivers.pop(user_id, None)
+            if user_id in user_drivers:
+                del user_drivers[user_id]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message"""
@@ -580,6 +597,7 @@ async def handle_root(request):
     
 async def main():
     await application.initialize()
+    await application.start()
     commands = [
         BotCommand("start", "Show welcome message"),
         BotCommand("scanin", "Manual scan-in"),
@@ -616,7 +634,7 @@ async def main():
         allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True
     )
-    
+    scheduler.start()
     # Verify webhook was set
     webhook_info = await application.bot.get_webhook_info()
     logger.info(f"Webhook Info: {webhook_info}")
