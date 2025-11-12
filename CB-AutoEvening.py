@@ -51,7 +51,7 @@ AUTHORIZED_USERS = [uid.strip() for uid in os.getenv('AUTHORIZED_USERS', '').spl
 TIMEZONE = pytz.timezone('Asia/Bangkok')
 BASE_LATITUDE = float(os.getenv('BASE_LATITUDE', '11.545380'))
 BASE_LONGITUDE = float(os.getenv('BASE_LONGITUDE', '104.911449'))
-MAX_DEVIATION_METERS = 150
+MAX_DEVIATION_METERS = 120
 
 scheduler = AsyncIOScheduler(timezone=TIMEZONE)
 auto_scan_enabled = True
@@ -197,12 +197,12 @@ def schedule_daily_scan(application):
         weekday = now.weekday()
 
         if weekday <= 4:
-            # Mon–Fri: 17:59–18:27
+            # Mon–Fri: 17:51–18:15
             hour = 18
-            minute = random.randint(0, 27)
+            minute = random.randint(0, 15)
             if minute < 1:
                 hour = 17
-                minute += 59
+                minute += 51
         elif weekday == 5:
             # Saturday: 12:07–12:17
             hour = 12
@@ -658,3 +658,4 @@ if __name__ == "__main__":
         loop.run_until_complete(main())
     finally:
         loop.close()
+
